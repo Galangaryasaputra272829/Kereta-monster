@@ -1,0 +1,713 @@
+```html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Express Delivery: Train Defense</title>
+    <style>
+        :root {
+            --bg-color: #090d16;
+            --panel-bg: rgba(22, 32, 50, 0.9);
+            --panel-border: rgba(255, 255, 255, 0.1);
+            --primary: #38bdf8;
+            --accent: #f59e0b;
+            --danger: #ef4444;
+            --success: #10b981;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 10px;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 960px;
+            background: var(--panel-bg);
+            border-radius: 16px;
+            box-shadow: 0 20px 30px rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(10, 15, 26, 0.85);
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .header-title h1 {
+            font-size: 1.2rem;
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .header-title p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 4px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            text-align: center;
+        }
+
+        .stat-card .label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .stat-card .value {
+            font-size: 1.05rem;
+            font-weight: bold;
+            color: var(--accent);
+            font-family: monospace;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #040812;
+            cursor: crosshair;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .controls-panel {
+            padding: 14px 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            background: rgba(15, 23, 42, 0.95);
+            border-top: 1px solid var(--panel-border);
+            align-items: center;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text);
+            border: 1px solid var(--panel-border);
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-action {
+            background: var(--primary);
+            color: #0f172a;
+            border: none;
+            font-weight: bold;
+        }
+
+        .btn-action:hover:not(:disabled) {
+            background: #0284c7;
+        }
+
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(9, 13, 22, 0.88);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 10;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-card {
+            background: #1e293b;
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 440px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+        }
+
+        .modal-icon {
+            font-size: 3rem;
+            margin-bottom: 8px;
+        }
+
+        .modal-title {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+
+        .modal-desc {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        @media (max-width: 768px) {
+            .controls-panel {
+                grid-template-columns: 1fr;
+            }
+            .stats-bar {
+                gap: 6px;
+            }
+            .stat-card .value {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Header Informasi -->
+        <header>
+            <div class="header-title">
+                <h1>Express Delivery: Train Defense</h1>
+                <p>Arahkan kursor & klik untuk menembak monster!</p>
+            </div>
+            <div class="stats-bar">
+                <div class="stat-card">
+                    <div class="label">HP Kereta</div>
+                    <div class="value" id="val-hp" style="color: var(--success);">100%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">BBM</div>
+                    <div class="value" id="val-fuel" style="color: var(--primary);">100%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Koin</div>
+                    <div class="value" id="val-gold">0 🪙</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Jarak</div>
+                    <div class="value" id="val-dist" style="color: var(--accent);">1000m</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Area Game Canvas -->
+        <div class="canvas-wrapper">
+            <canvas id="gameCanvas"></canvas>
+
+            <!-- Popup Modal Hasil Game -->
+            <div class="modal-overlay" id="gameModal">
+                <div class="modal-card">
+                    <div class="modal-icon" id="modalIcon">🚂</div>
+                    <div class="modal-title" id="modalTitle">Misi Selesai!</div>
+                    <div class="modal-desc" id="modalDesc">Deskripsi hasil pertandingan.</div>
+                    <button class="btn btn-action" style="width: 100%; justify-content: center;" onclick="restartGame()" id="modalBtn">Main Lagi 🔄</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Kontrol Aksi -->
+        <div class="controls-panel">
+            <button class="btn btn-action" id="btn-fuel" onclick="buyFuel()">⛽ Beli BBM (30 Koin)</button>
+            <button class="btn btn-action" id="btn-repair" onclick="repairTrain()">🛠️ Perbaiki HP (50 Koin)</button>
+            <button class="btn" onclick="soundEngine.toggleMute()" id="mute-btn">🔊 Suara: ON</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Web Audio API Synthesizer (Sistem Suara Efek Tanpa File Luar) ---
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            toggleMute() {
+                this.muted = !this.muted;
+                document.getElementById('mute-btn').innerText = this.muted ? "🔇 Suara: OFF" : "🔊 Suara: ON";
+            }
+
+            playLaser() {
+                if (this.muted) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(150, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
+
+            playExplosion() {
+                if (this.muted) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.25);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.25);
+            }
+
+            playCoin() {
+                if (this.muted) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.frequency.setValueAtTime(987.77, this.ctx.currentTime);
+                osc.frequency.setValueAtTime(1318.51, this.ctx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.2);
+            }
+        }
+
+        const soundEngine = new SoundEngine();
+
+        // --- Variabel & Status Utama Game ---
+        let canvas, ctx;
+        let isRunning = false;
+        let animationFrameId = null;
+
+        let mousePos = { x: 0, y: 0 };
+        let bullets = [];
+        let enemies = [];
+        let particles = [];
+        let lastEnemySpawn = 0;
+
+        let gameState = {
+            hp: 100,
+            maxHp: 100,
+            fuel: 100,
+            gold: 0,
+            distance: 1000,
+            speed: 0.6
+        };
+
+        window.onload = () => {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Deteksi Gerakan Mouse/Kursor
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                mousePos.x = (e.clientX - rect.left) * (canvas.width / rect.width);
+                mousePos.y = (e.clientY - rect.top) * (canvas.height / rect.height);
+            });
+
+            // Deteksi Sentuhan HP untuk Mengarahkan & Menembak
+            canvas.addEventListener('touchstart', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const touch = e.touches[0];
+                mousePos.x = (touch.clientX - rect.left) * (canvas.width / rect.width);
+                mousePos.y = (touch.clientY - rect.top) * (canvas.height / rect.height);
+                shootBullet();
+            });
+
+            // Deteksi Klik Tembak
+            canvas.addEventListener('click', shootBullet);
+
+            restartGame();
+        };
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+
+        function restartGame() {
+            gameState = {
+                hp: 100,
+                maxHp: 100,
+                fuel: 100,
+                gold: 20,
+                distance: 1000,
+                speed: 0.6
+            };
+            bullets = [];
+            enemies = [];
+            particles = [];
+            isRunning = true;
+            closeModal();
+            updateUI();
+
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            gameLoop();
+        }
+
+        function updateUI() {
+            document.getElementById('val-hp').innerText = `${Math.max(0, Math.ceil(gameState.hp))}%`;
+            document.getElementById('val-fuel').innerText = `${Math.max(0, Math.ceil(gameState.fuel))}%`;
+            document.getElementById('val-gold').innerText = `${gameState.gold} 🪙`;
+            document.getElementById('val-dist').innerText = `${Math.max(0, Math.ceil(gameState.distance))}m`;
+
+            document.getElementById('btn-fuel').disabled = gameState.gold < 30 || gameState.fuel >= 95;
+            document.getElementById('btn-repair').disabled = gameState.gold < 50 || gameState.hp >= 95;
+        }
+
+        function buyFuel() {
+            if (gameState.gold >= 30) {
+                gameState.gold -= 30;
+                gameState.fuel = Math.min(100, gameState.fuel + 40);
+                soundEngine.playCoin();
+                updateUI();
+            }
+        }
+
+        function repairTrain() {
+            if (gameState.gold >= 50) {
+                gameState.gold -= 50;
+                gameState.hp = Math.min(100, gameState.hp + 35);
+                soundEngine.playCoin();
+                updateUI();
+            }
+        }
+
+        function shootBullet() {
+            if (!isRunning) return;
+
+            const turretX = canvas.width * 0.25;
+            const turretY = canvas.height * 0.62;
+
+            const angle = Math.atan2(mousePos.y - turretY, mousePos.x - turretX);
+
+            bullets.push({
+                x: turretX,
+                y: turretY,
+                vx: Math.cos(angle) * 12,
+                vy: Math.sin(angle) * 12
+            });
+
+            soundEngine.playLaser();
+        }
+
+        function spawnEnemy() {
+            const types = [
+                { hp: 2, speed: 2, gold: 10, size: 14, color: '#ef4444' }, // Monster Kecil
+                { hp: 5, speed: 1.1, gold: 25, size: 22, color: '#f59e0b' } // Monster Besar
+            ];
+            const type = types[Math.random() > 0.65 ? 1 : 0];
+
+            enemies.push({
+                x: canvas.width + 30,
+                y: Math.random() * (canvas.height * 0.45) + 30,
+                ...type
+            });
+        }
+
+        // --- Logika Pembaruan Game ---
+        function update() {
+            if (!isRunning) return;
+
+            // Pengurangan Jarak & Penggunaan BBM
+            if (gameState.fuel > 0) {
+                gameState.distance -= gameState.speed;
+                gameState.fuel -= 0.035;
+            } else {
+                gameState.hp -= 0.06; // Efek samping mogok
+            }
+
+            // Kondisi Menang / Kalah
+            if (gameState.distance <= 0) {
+                endGame(true, "🎉 STASIUN TERCAPAI! Kamu berhasil mempertahankan kereta sampai garis akhir.");
+                return;
+            }
+
+            if (gameState.hp <= 0) {
+                endGame(false, "💥 KERETA HANCUR! Monster berhasil menembus pertahanan kereta.");
+                return;
+            }
+
+            // Kemunculan Monster Berkala
+            const now = Date.now();
+            if (now - lastEnemySpawn > 1100) {
+                spawnEnemy();
+                lastEnemySpawn = now;
+            }
+
+            // Pergerakan Peluru
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                b.x += b.vx;
+                b.y += b.vy;
+                if (b.x > canvas.width || b.x < 0 || b.y < 0 || b.y > canvas.height) {
+                    bullets.splice(i, 1);
+                }
+            }
+
+            // Pergerakan Monster & Deteksi Tabrakan
+            for (let ei = enemies.length - 1; ei >= 0; ei--) {
+                const e = enemies[ei];
+                const targetX = canvas.width * 0.2;
+                const targetY = canvas.height * 0.68;
+                const angle = Math.atan2(targetY - e.y, targetX - e.x);
+
+                e.x += Math.cos(angle) * e.speed;
+                e.y += Math.sin(angle) * e.speed;
+
+                // Tabrakan Peluru dengan Monster
+                for (let bi = bullets.length - 1; bi >= 0; bi--) {
+                    const b = bullets[bi];
+                    const dist = Math.hypot(b.x - e.x, b.y - e.y);
+
+                    if (dist < e.size) {
+                        e.hp -= 1;
+                        bullets.splice(bi, 1);
+
+                        // Efek Partikel Percikan
+                        for (let k = 0; k < 4; k++) {
+                            particles.push({
+                                x: e.x, y: e.y,
+                                vx: (Math.random() - 0.5) * 4,
+                                vy: (Math.random() - 0.5) * 4,
+                                life: 1, color: e.color
+                            });
+                        }
+
+                        if (e.hp <= 0) {
+                            gameState.gold += e.gold;
+                            soundEngine.playExplosion();
+                            enemies.splice(ei, 1);
+                            updateUI();
+                            break;
+                        }
+                    }
+                }
+
+                // Monster Menyerang Kereta
+                if (e.x < canvas.width * 0.38 && e.y > canvas.height * 0.52) {
+                    gameState.hp -= e.size * 0.35;
+                    soundEngine.playExplosion();
+                    enemies.splice(ei, 1);
+                    updateUI();
+                }
+            }
+
+            // Perbarui Partikel
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.05;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            updateUI();
+        }
+
+        // --- Render Grafis Canvas ---
+        function render() {
+            const w = canvas.width;
+            const h = canvas.height;
+            const groundY = h * 0.75;
+
+            ctx.fillStyle = '#040812';
+            ctx.fillRect(0, 0, w, h);
+
+            // 1. Latar Belakang Paralaks
+            ctx.fillStyle = '#0c1427';
+            ctx.fillRect(0, 0, w, groundY);
+
+            ctx.fillStyle = '#111c35';
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            for (let i = 0; i <= w; i += 80) {
+                const mh = Math.sin((i + Date.now() * 0.08) * 0.005) * 40 + 60;
+                ctx.lineTo(i, groundY - mh);
+            }
+            ctx.lineTo(w, groundY);
+            ctx.fill();
+
+            // 2. Rel Kereta & Garis Perlintasan
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, groundY, w, h - groundY);
+            ctx.fillStyle = '#64748b';
+            ctx.fillRect(0, groundY - 4, w, 4);
+
+            // 3. Gambar Visual Kereta Lapis Baja
+            const trainX = w * 0.05;
+            const trainY = groundY - 36;
+
+            // Gerbong Belakang
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(trainX, trainY - 10, 80, 40);
+
+            // Lokomotif Utama
+            ctx.fillStyle = '#0284c7';
+            ctx.fillRect(trainX + 85, trainY - 20, 110, 50);
+
+            // Turret Meriam
+            const turretX = trainX + 140;
+            const turretY = trainY - 20;
+
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(turretX, turretY, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Arah Moncong Meriam (Mengikuti Posisi Kursor)
+            const angle = Math.atan2(mousePos.y - turretY, mousePos.x - turretX);
+            ctx.save();
+            ctx.translate(turretX, turretY);
+            ctx.rotate(angle);
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillRect(0, -4, 22, 8);
+            ctx.restore();
+
+            // Roda Kereta
+            ctx.fillStyle = '#0f172a';
+            [trainX + 15, trainX + 65, trainX + 105, trainX + 175].forEach(rx => {
+                ctx.beginPath();
+                ctx.arc(rx, groundY - 2, 8, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Efek Asap Cerobong Kereta
+            if (gameState.fuel > 0 && Math.random() > 0.3) {
+                particles.push({
+                    x: trainX + 180,
+                    y: trainY - 25,
+                    vx: -2 - Math.random(),
+                    vy: -1 - Math.random(),
+                    life: 0.8,
+                    color: 'rgba(203, 213, 225, 0.4)'
+                });
+            }
+
+            // 4. Gambar Peluru
+            ctx.fillStyle = '#38bdf8';
+            bullets.forEach(b => {
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 5. Gambar Monster
+            enemies.forEach(e => {
+                ctx.fillStyle = e.color;
+                ctx.beginPath();
+                ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Detail Mata Monster
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(e.x - 4, e.y - 2, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 6. Gambar Partikel
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function gameLoop() {
+            update();
+            render();
+            if (isRunning) {
+                animationFrameId = requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function endGame(isWin, message) {
+            isRunning = false;
+            document.getElementById('modalTitle').innerText = isWin ? "Kemenangan Total!" : "Kereta Hancur!";
+            document.getElementById('modalDesc').innerText = message;
+            document.getElementById('modalIcon').innerText = isWin ? "🏆" : "💥";
+            document.getElementById('gameModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('gameModal').classList.remove('active');
+        }
+    </script>
+</body>
+</html>
+```
